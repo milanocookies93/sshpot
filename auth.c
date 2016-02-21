@@ -8,8 +8,9 @@
 #include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-
-
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 /* Stores the current UTC time. Returns 0 on error. */
 static int get_utc(struct connection *c) {
@@ -39,10 +40,6 @@ static int log_attempt(struct connection *c) {
     FILE *f;
     int r;
 
-    if ((f = fopen(LOGFILE, "a+")) == NULL) {
-        fprintf(stderr, "Unable to open %s\n", LOGFILE);
-        return -1;
-    }
 
     if (get_utc(c) <= 0) {
         fprintf(stderr, "Error getting time\n");
@@ -54,11 +51,17 @@ static int log_attempt(struct connection *c) {
         return -1;
     }
 
-    c->user = ssh_message_auth_user(c->message);
-    c->pass = ssh_message_auth_password(c->message);
+    FILE *g = fopen(LOGFILE, "r");
+    char tmp[256]={0x0};
+    while (g!=NULL && fgets(tmp, sizeof(tmp), g)!=NULL)
+    {
+	if (strstr(tmp, c->client_ip))
+		return -1;
+    }
+    if (g!= NULL) fclose(g);
 
-    if (DEBUG) { printf("%s %s %s %s\n", c->con_time, c->client_ip, c->user, c->pass); }
-    r = fprintf(f, "%s %s %s %s\n", c->con_time, c->client_ip, c->user, c->pass);
+    f = fopen(LOGFILE, "a+");
+    r = fprintf(f, "%s\n", c->client_ip);
     fclose(f);
     return r;
 }
